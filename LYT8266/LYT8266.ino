@@ -63,10 +63,12 @@ void setup()
 
   Serial.println("- Start WifiManager");
   wifiManager.setDebugOutput(true);
+  wifiManager.setAPCallback(configModeCallback);
+  wifiManager.setConfigPortalTimeout(180);
   wifiManager.autoConnect();
 
   Serial.println("- Start OTA");
-  myLYT8266Led.vfSetRGBValues(0, 0, 255);=
+  myLYT8266Led.vfSetRGBValues(0, 0, 255);
   OTA_Init("LYT8266-OTA");
 
   Serial.println("- Start UDP");
