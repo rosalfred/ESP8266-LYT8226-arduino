@@ -15,119 +15,70 @@
  *      MA 02110-1301, USA.
  */
 
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * *
- Code by AUTHOMETION S.r.l.
- Version: 1.00
- Date: 24.10.2015
- * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-
-/*********************************************************
- *                  INPORTANT NOTICE                     *
- *********************************************************                  
- * This sketch require stagging stable 2.0.0             *
- * for a correct compiling and an ESP module with 1 MB   *
- * or more memory flash. Set SPIFFS to 64 kB. OTA on port*
- * 8080.                                                 *
- * Use Packet Sender program to send UDP packet to bulb  *
- * on 8899 port                                          *
- *********************************************************/
- 
+// ESP8266 Stack
 #include <ESP8266WiFi.h>
-#include <ESP8266WebServer.h>
+#include <ESP8266WebServer.h>     //Local WebServer used to serve the configuration portal
 #include <ESP8266mDNS.h>
 #include <WiFiUdp.h>
+
+// LYT8266
 #include <LYT8266_WEB_OTA.h>
 #include <LYT8266Led.h>
 
-#include "LYTWifi.h"
-
-#define WIFI_MODE_STA
-
-#if (defined(WIFI_MODE_AP_STA)||defined(WIFI_MODE_STA))
-const char* cSSID = WIFI_SSID;
-const char* cPhrase = WIFI_PASS;
-#endif
+// Wifi Manager
+#include <DNSServer.h>            //Local DNS Server used for redirecting all requests to the configuration portal
+#include <WiFiManager.h>          //https://github.com/tzapu/WiFiManager WiFi Configuration Magic
 
 OTA_Setup(8080)
+
 uint16_t ui16LocalPort=8899;      // local port to listen for UDP packets
 uint16_t ui16BytesReceived;
 uint8_t ui8Counter, ui8RedValue, ui8GreenValue, ui8BlueValue, ui8WhiteValue;
 char cPacketBuffer[512];         //buffer to hold incoming and outgoing packets
 String sReceivedCommand;
 uint32_t ui32Time;
+
 LYT8266Led myLYT8266Led;
+WiFiManager wifiManager;
 WiFiUDP myUDP;
+
+void configModeCallback (WiFiManager *myWiFiManager) {
+  Serial.println("Entered config mode");
+  Serial.println(WiFi.softAPIP());
+  myLYT8266Led.vfSetRGBValues(0, 255, 0);
+
+  Serial.println(myWiFiManager->getConfigPortalSSID());
+}
 
 void setup()
 {
   Serial.begin(115200);
   Serial.println("");
-  delay(2000);
-  Serial.println("LYT8266");
+  Serial.println("Boot LYT8266");
   Serial.printf("Sketch size: %u\n", ESP.getSketchSize());
   Serial.printf("Free size: %u\n", ESP.getFreeSketchSpace());
 
   myLYT8266Led.vfESP8266HWInit();
-  myLYT8266Led.vfSetWhiteValue(200);
-  
-#if defined(WIFI_MODE_STA)
-  Serial.println("STA");
-  WiFi.mode(WIFI_STA);
-  delay(1000);
-  WiFi.begin(cSSID, cPhrase);
-  Serial.print("WiFi Connection ");
-  ui32Time=millis();
-  while((WiFi.status()!=WL_CONNECTED)&&(millis()-ui32Time<10000))
-  {
-    Serial.print(".");
-    delay(500);
-  }
-  Serial.println();
-  if(WiFi.status()!=WL_CONNECTED)
-  {
-    WiFi.softAP("LYT8266");
-    delay(1000);
-  }
+  myLYT8266Led.vfSetRGBValues(255, 0, 255);
+
+  Serial.println("- Start WifiManager");
+  wifiManager.setDebugOutput(true);
+  wifiManager.autoConnect();
+
+  Serial.println("- Start OTA");
+  myLYT8266Led.vfSetRGBValues(0, 0, 255);=
   OTA_Init("LYT8266-OTA");
-#endif
-#if defined(WIFI_MODE_AP)
-  Serial.println("AP");
-  WiFi.mode(WIFI_AP);
-  WiFi.disconnect();
-  WiFi.softAP("LYT8266");
-  delay(4000);
-  OTA_Init("LYT8266-OTA");
-#endif
-#if defined(WIFI_MODE_AP_STA)
-  Serial.println("AP_STA");
-  WiFi.softAP("LYT8266");
-  WiFi.mode(WIFI_AP_STA);
-  delay(1000);
-  WiFi.begin(cSSID, cPhrase);
-  Serial.print("WiFi Connection ");
-  ui32Time=millis();
-  while((WiFi.status()!=WL_CONNECTED)&&(millis()-ui32Time<10000))
-  {
-    Serial.print(".");
-    delay(500);
-  }
-  Serial.println();
-  OTA_Init("LYT8266-OTA");
-#endif
- 
+
+  Serial.println("- Start UDP");
+  myLYT8266Led.vfSetRGBValues(0, 250, 255);
   myUDP.begin(ui16LocalPort);
-  delay(1000);
-  Serial.println("Setup done");
-#if (defined(WIFI_MODE_STA)||defined(WIFI_MODE_AP_STA))
-  Serial.print("Local IP address: ");
-  Serial.println(WiFi.localIP());
-#endif
-#if (defined(WIFI_MODE_AP) || defined(WIFI_MODE_AP_STA))
-  Serial.print("Local AP address: ");
-  Serial.println(WiFi.softAPIP());
-#endif
-setupRest();
-Serial.println("LYT8266 run, enjoy!");
+  
+  Serial.println("- Start REST");
+  myLYT8266Led.vfSetRGBValues(0, 255, 20);
+  setupRest();
+
+  Serial.println("LYT8266 run, enjoy!");
+  myLYT8266Led.vfSetWhiteValue(250);
 }
 
 void loop()
